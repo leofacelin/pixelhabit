@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pixel Habit - v1.9.1</title>
+    <title>Pixel Habit - v2.3</title>
     <style>
         :root {
             /* 基础配色 */
@@ -23,6 +23,7 @@
             /* UI 组件 */
             --modal-bg: #161b22;
             --btn-primary: #238636;
+            --btn-danger: #da3633;
         }
 
         body {
@@ -57,20 +58,27 @@
             border-radius: 6px; cursor: pointer; font-size: 0.9rem;
         }
 
-        /* --- 标签栏 --- */
+        /* --- 标签栏 (核心修改：支持换行) --- */
         .tabs-container {
-            width: 100%; max-width: 900px;
-            display: flex; align-items: center; gap: 10px;
-            margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px;
-            scrollbar-width: none; 
+            width: 100%; 
+            max-width: 900px;
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            margin-bottom: 15px; 
+            
+            /* 修改点：允许换行，移除滚动条 */
+            flex-wrap: wrap; 
+            overflow-x: visible; 
+            padding-bottom: 0;
         }
-        .tabs-container::-webkit-scrollbar { display: none; }
 
         .tab-btn {
             background-color: #21262d; color: var(--text-muted);
             border: 1px solid var(--border-color); padding: 8px 16px;
             border-radius: 20px; cursor: pointer; font-size: 0.9rem;
             display: flex; align-items: center; gap: 6px; white-space: nowrap;
+            margin-bottom: 5px; /* 换行时增加一点行间距 */
         }
         .tab-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
         .tab-btn.active { border-color: var(--text-main); color: white; background: #30363d; }
@@ -79,6 +87,7 @@
             width: 32px; height: 32px; border-radius: 50%;
             border: 1px dashed var(--border-color); color: var(--text-muted);
             background: none; cursor: pointer; flex-shrink: 0;
+            margin-bottom: 5px;
         }
 
         .habit-toolbar { width: 100%; max-width: 900px; text-align: right; margin-bottom: 5px; }
@@ -94,70 +103,27 @@
 
         .graph-container { display: flex; gap: var(--gap); }
         
-        /* 日期标签基础样式 */
-        .date-label {
-            /* 修改点：颜色改为 #333333 (稍微亮一点) */
-            color: #333333; 
-            font-family: monospace; 
-            white-space: nowrap;
-        }
+        /* 日期标签样式 */
+        .date-label { color: #333333; font-family: monospace; white-space: nowrap; }
 
         /* ===== Desktop Layout ===== */
         @media (min-width: 769px) {
             .heatmap-wrapper { display: flex; justify-content: flex-start; }
             .graph-container { flex-direction: row; width: max-content; }
-            
-            .week-group {
-                display: flex;
-                flex-direction: column;
-                align-items: center; 
-                gap: 5px;
-            }
-            
-            .date-label {
-                font-size: 10px;
-                height: 12px; 
-            }
-
-            .week-pixels {
-                display: grid;
-                grid-template-rows: repeat(7, var(--cell-size-desktop));
-                grid-auto-flow: row;
-                gap: var(--gap);
-            }
-
+            .week-group { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+            .date-label { font-size: 10px; height: 12px; }
+            .week-pixels { display: grid; grid-template-rows: repeat(7, var(--cell-size-desktop)); grid-auto-flow: row; gap: var(--gap); }
             .pixel { width: var(--cell-size-desktop); height: var(--cell-size-desktop); }
         }
 
         /* ===== Mobile Layout ===== */
         @media (max-width: 768px) {
             body { padding: 10px; } 
-            
             .heatmap-wrapper { max-width: 70%; margin: 0 auto; }
             .graph-container { flex-direction: column-reverse; width: 100%; gap: 6px; }
-            
-            .week-group {
-                display: flex;
-                flex-direction: row;
-                align-items: center;
-                gap: 8px; 
-                width: 100%;
-            }
-
-            .date-label {
-                font-size: 10px;
-                width: 40px; 
-                text-align: right; 
-                flex-shrink: 0;
-            }
-
-            .week-pixels {
-                display: grid;
-                grid-template-columns: repeat(7, 1fr);
-                gap: 4px; 
-                flex-grow: 1; 
-            }
-
+            .week-group { display: flex; flex-direction: row; align-items: center; gap: 8px; width: 100%; }
+            .date-label { font-size: 10px; width: 40px; text-align: right; flex-shrink: 0; }
+            .week-pixels { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; flex-grow: 1; }
             .pixel { width: 100%; aspect-ratio: 1; }
         }
 
@@ -178,13 +144,33 @@
         #global-tooltip.show { opacity: 1; }
 
         /* Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal { background: var(--modal-bg); padding: 25px; border-radius: 8px; border: 1px solid var(--border-color); width: 85%; max-width: 320px; }
-        .input-group { margin-bottom: 15px; }
-        .input-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
-        .input-group input { width: 100%; padding: 10px; background: #0d1117; border: 1px solid var(--border-color); color: white; border-radius: 6px; box-sizing: border-box; }
-        .modal-actions { margin-top: 25px; text-align: right; }
-        .btn-primary { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); display: none; 
+            justify-content: center; align-items: center; z-index: 1000; 
+            backdrop-filter: blur(3px);
+        }
+        .modal { 
+            background: var(--modal-bg); padding: 25px; 
+            border-radius: 12px; border: 1px solid var(--border-color); 
+            width: 85%; max-width: 320px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .modal h2 { margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; }
+        
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+        .input-group input { 
+            width: 100%; padding: 10px; background: #0d1117; 
+            border: 1px solid var(--border-color); color: white; 
+            border-radius: 6px; box-sizing: border-box; 
+        }
+        .modal-actions { margin-top: 25px; text-align: right; display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-cancel { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 8px 16px; border-radius: 6px; }
+        .btn-cancel:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
+        .btn-primary { background: var(--btn-primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .btn-danger { background: var(--btn-danger); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+
         #status-msg { margin-top: 20px; color: var(--text-muted); font-size: 0.8rem; text-align: center; }
     </style>
 </head>
@@ -200,7 +186,7 @@
 
     <div class="tabs-container" id="tabs-container"></div>
     <div class="habit-toolbar">
-        <button class="btn-text-danger" id="btn-delete-habit" onclick="deleteCurrentHabit()" style="display:none;">删除此习惯</button>
+        <button class="btn-text-danger" id="btn-delete-habit" onclick="openDeleteModal()" style="display:none;">删除此习惯</button>
     </div>
 
     <div class="heatmap-wrapper" id="scroll-wrapper">
@@ -212,20 +198,52 @@
 
     <div id="settings-modal" class="modal-overlay">
         <div class="modal">
-            <h2 style="margin-top:0">数据源配置</h2>
+            <h2>数据源配置</h2>
             <div class="input-group"><label>JsonIO Bin ID</label><input type="text" id="cfg-bin-id" placeholder="Bin ID"></div>
             <div class="input-group"><label>JsonIO API Key</label><input type="password" id="cfg-json-key" placeholder="X-Master-Key"></div>
             <div class="input-group"><label>ImgBB API Key (选填)</label><input type="text" id="cfg-imgbb" placeholder="ImgBB Key"></div>
             <div class="modal-actions">
-                <button onclick="closeSettings()" style="background:none;border:none;color:#8b949e;margin-right:10px;cursor:pointer">取消</button>
+                <button class="btn-cancel" onclick="closeSettings()">取消</button>
                 <button class="btn-primary" onclick="saveSettings()">连接</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-modal" class="modal-overlay">
+        <div class="modal">
+            <h2>新建习惯</h2>
+            <div class="input-group">
+                <label>习惯名称</label>
+                <input type="text" id="add-habit-name" placeholder="例如: 阅读, 健身...">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeAddModal()">取消</button>
+                <button class="btn-primary" onclick="confirmAddHabit()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-modal" class="modal-overlay">
+        <div class="modal">
+            <h2>删除确认</h2>
+            <p style="color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
+                确定要删除这个习惯及其所有打卡记录吗？<br>此操作<b>无法撤销</b>。
+            </p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeDeleteModal()">取消</button>
+                <button class="btn-danger" onclick="confirmDeleteHabit()">删除</button>
             </div>
         </div>
     </div>
 
 <script>
     const CONFIG_KEY = 'pixel_habit_config_v4'; 
-    const PALETTE = ['#39d353', '#2f81f7', '#a371f7', '#d29922', '#f778ba', '#3fb950', '#58a6ff'];
+    const PALETTE = [
+        '#39d353', '#2ea043', '#2f81f7', '#58a6ff', '#a371f7', 
+        '#bc8cff', '#d29922', '#fbbf24', '#f85149', '#ff7b72', 
+        '#f778ba', '#ff9bce', '#3fb950', '#38bdf8', '#2dd4bf'
+    ];
+
     let appConfig = { binId: '', jsonKey: '', imgbbKey: '' };
     let habitData = { meta: { version: 3 }, habits: [] };
     let activeHabitId = null;
@@ -244,26 +262,43 @@
         habitData.habits = [{ id: Date.now(), name: "默认习惯", color: PALETTE[0], records: {} }];
         activeHabitId = habitData.habits[0].id;
     }
+
     function switchHabit(id) {
         activeHabitId = id; renderTabs(); renderGrid();
         document.getElementById('btn-delete-habit').style.display = habitData.habits.length > 1 ? 'inline-block' : 'none';
     }
-    function addNewHabit() {
-        const name = prompt("输入新习惯名称：");
-        if (name) {
-            const colorIndex = habitData.habits.length % PALETTE.length;
-            habitData.habits.push({ id: Date.now(), name: name, color: PALETTE[colorIndex], records: {} });
-            switchHabit(habitData.habits[habitData.habits.length-1].id); triggerSave();
-        }
+
+    // --- Add Modal ---
+    function openAddModal() {
+        document.getElementById('add-habit-name').value = '';
+        document.getElementById('add-modal').style.display = 'flex';
+        document.getElementById('add-habit-name').focus();
     }
-    function deleteCurrentHabit() {
-        if (!confirm("确定删除？")) return;
+    function closeAddModal() { document.getElementById('add-modal').style.display = 'none'; }
+    
+    function confirmAddHabit() {
+        const name = document.getElementById('add-habit-name').value.trim();
+        if (!name) return alert("请输入习惯名称");
+        
+        // 自动分配颜色
+        const colorIndex = habitData.habits.length % PALETTE.length;
+        const autoColor = PALETTE[colorIndex];
+
+        habitData.habits.push({ id: Date.now(), name: name, color: autoColor, records: {} });
+        switchHabit(habitData.habits[habitData.habits.length-1].id); 
+        triggerSave(); closeAddModal();
+    }
+
+    // --- Delete Modal ---
+    function openDeleteModal() { if (habitData.habits.length <= 1) return; document.getElementById('delete-modal').style.display = 'flex'; }
+    function closeDeleteModal() { document.getElementById('delete-modal').style.display = 'none'; }
+    function confirmDeleteHabit() {
         habitData.habits = habitData.habits.filter(h => h.id !== activeHabitId);
-        switchHabit(habitData.habits[0].id); triggerSave();
+        switchHabit(habitData.habits[0].id); triggerSave(); closeDeleteModal();
     }
-    function getCurrentHabit() {
-        return habitData.habits.find(h => h.id === activeHabitId) || habitData.habits[0];
-    }
+
+    // --- Common ---
+    function getCurrentHabit() { return habitData.habits.find(h => h.id === activeHabitId) || habitData.habits[0]; }
     function renderTabs() {
         const container = document.getElementById('tabs-container'); container.innerHTML = '';
         habitData.habits.forEach(habit => {
@@ -275,8 +310,8 @@
             container.appendChild(btn);
         });
         const addBtn = document.createElement('button');
-        addBtn.className = 'tab-action-btn'; addBtn.innerHTML = '+';
-        addBtn.onclick = addNewHabit; container.appendChild(addBtn);
+        addBtn.className = 'tab-action-btn'; addBtn.innerHTML = '+'; addBtn.onclick = openAddModal; 
+        container.appendChild(addBtn);
     }
 
     // --- Grid Render ---
@@ -288,7 +323,6 @@
 
         const today = new Date();
         const WEEKS_TO_SHOW = 26; 
-
         let currentWeekMonday = new Date(today);
         const currentDay = currentWeekMonday.getDay();
         currentWeekMonday.setDate(today.getDate() - currentDay + (currentDay === 0 ? -6 : 1));
@@ -298,19 +332,15 @@
 
         for (let w = 0; w < WEEKS_TO_SHOW; w++) {
             const weekGroup = document.createElement('div'); weekGroup.className = 'week-group';
-            
             const mondayOfThisWeek = new Date(startDate);
             mondayOfThisWeek.setDate(startDate.getDate() + (w * 7));
             const labelStr = formatMonthDay(mondayOfThisWeek);
 
             const labelDiv = document.createElement('div');
-            labelDiv.className = 'date-label';
-            labelDiv.textContent = labelStr;
+            labelDiv.className = 'date-label'; labelDiv.textContent = labelStr;
             weekGroup.appendChild(labelDiv);
 
-            const pixelsDiv = document.createElement('div');
-            pixelsDiv.className = 'week-pixels';
-
+            const pixelsDiv = document.createElement('div'); pixelsDiv.className = 'week-pixels';
             for (let d = 0; d < 7; d++) {
                 const current = new Date(startDate);
                 current.setDate(startDate.getDate() + (w * 7) + d);
@@ -319,23 +349,18 @@
                 
                 const div = document.createElement('div');
                 div.className = 'pixel'; div.dataset.date = dateStr;
-
                 if (dayOfWeek === 0 || dayOfWeek === 6) div.classList.add('weekend');
                 if (records[dateStr]) div.classList.add('active');
                 if (dateStr === formatDate(today)) div.classList.add('today');
 
                 div.addEventListener('mouseenter', (e) => showTooltip(e.target, dateStr, records[dateStr]));
                 div.addEventListener('mouseleave', hideTooltip);
-                
                 if (current > today) { div.style.opacity = '0.3'; div.style.cursor = 'default'; }
                 else { div.onclick = () => toggleDate(dateStr, div); }
-                
                 pixelsDiv.appendChild(div);
             }
-            weekGroup.appendChild(pixelsDiv);
-            container.appendChild(weekGroup);
+            weekGroup.appendChild(pixelsDiv); container.appendChild(weekGroup);
         }
-
         setTimeout(() => { if (window.innerWidth <= 768) window.scrollTo(0, 0); }, 50);
     }
 
@@ -350,7 +375,6 @@
         tooltipEl.classList.add('show');
     }
     function hideTooltip() { tooltipEl.classList.remove('show'); }
-
     function toggleDate(dateStr, el) {
         const currentHabit = getCurrentHabit();
         if (!currentHabit.records) currentHabit.records = {};
