@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Habit - 修复版</title>
+    <style>
+        :root {
+            /* 基础配色 */
+            --bg-color: #0d1117;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --border-color: #30363d;
+            
+            /* 格子配色 */
+            --cell-bg: #161b22;
+            --cell-weekend: #21262d; 
+            
+            /* 电脑端尺寸 (保持大尺寸) */
+            --cell-size-desktop: 28px; 
+            --gap: 5px; 
+            
+            /* UI 组件 */
+            --modal-bg: #161b22;
+            --btn-primary: #238636;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- 顶部栏 --- */
+        header {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+        h1 { margin: 0; font-size: 1.5rem; }
+        .subtitle { font-size: 0.85rem; color: var(--text-muted); margin-top: 5px; }
+        
+        button.btn-icon {
+            background: none; border: 1px solid var(--border-color);
+            color: var(--text-main); padding: 6px 12px;
+            border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+        }
+
+        /* --- 标签栏 --- */
+        .tabs-container {
+            width: 100%; max-width: 900px;
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px;
+            scrollbar-width: none; 
+        }
+        .tabs-container::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            background-color: #21262d; color: var(--text-muted);
+            border: 1px solid var(--border-color); padding: 8px 16px;
+            border-radius: 20px; cursor: pointer; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 6px; white-space: nowrap;
+        }
+        .tab-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+        .tab-btn.active { border-color: var(--text-main); color: white; background: #30363d; }
+        
+        .tab-action-btn {
+            width: 32px; height: 32px; border-radius: 50%;
+            border: 1px dashed var(--border-color); color: var(--text-muted);
+            background: none; cursor: pointer; flex-shrink: 0;
+        }
+
+        .habit-toolbar { width: 100%; max-width: 900px; text-align: right; margin-bottom: 5px; }
+        .btn-text-danger { background: none; border: none; color: #f85149; cursor: pointer; opacity: 0.6; font-size: 0.8rem; }
+
+        /* --- 核心布局 --- */
+        .heatmap-wrapper {
+            width: 100%;
+            max-width: 900px;
+            position: relative;
+            /* 去区块化 */
+            border: none; background: transparent; box-shadow: none; overflow: visible; padding: 0;
+        }
+
+        .graph-container { display: flex; gap: var(--gap); }
+        .week-group { display: grid; gap: var(--gap); }
+
+        /* Desktop */
+        @media (min-width: 769px) {
+            .heatmap-wrapper { display: flex; justify-content: flex-start; }
+            .graph-container { flex-direction: row; width: max-content; }
+            .week-group { grid-template-rows: repeat(7, var(--cell-size-desktop)); grid-auto-flow: row; }
+            .pixel { width: var(--cell-size-desktop); height: var(--cell-size-desktop); }
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            body { padding: 10px; } 
+            .heatmap-wrapper { max-width: 58%; margin: 0 auto; }
+            .graph-container { flex-direction: column-reverse; width: 100%; gap: 6px; }
+            .week-group { grid-template-columns: repeat(7, 1fr); width: 100%; }
+            .pixel { width: 100%; aspect-ratio: 1; }
+        }
+
+        .pixel { background-color: var(--cell-bg); border-radius: 4px; cursor: pointer; transition: transform 0.1s; }
+        .pixel:active { transform: scale(0.9); }
+        .pixel.weekend { background-color: var(--cell-weekend); }
+        .pixel.active { background-color: var(--habit-color); box-shadow: 0 0 8px var(--habit-color); }
+        .pixel.today { border: 2px solid white; box-sizing: border-box; }
+
+        /* Tooltip */
+        #global-tooltip {
+            position: fixed; background: #6e7681; color: white;
+            padding: 6px 10px; border-radius: 4px; font-size: 12px;
+            white-space: nowrap; pointer-events: none; z-index: 9999;
+            opacity: 0; transform: translate(-50%, -120%);
+            transition: opacity 0.1s; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        #global-tooltip.show { opacity: 1; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal { background: var(--modal-bg); padding: 25px; border-radius: 8px; border: 1px solid var(--border-color); width: 85%; max-width: 320px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
+        .input-group input { width: 100%; padding: 10px; background: #0d1117; border: 1px solid var(--border-color); color: white; border-radius: 6px; box-sizing: border-box; }
+        .modal-actions { margin-top: 25px; text-align: right; }
+        .btn-primary { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        #status-msg { margin-top: 20px; color: var(--text-muted); font-size: 0.8rem; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>Pixel Habit</h1>
+            <div class="subtitle">记录你的坚持</div>
+        </div>
+        <button class="btn-icon" onclick="openSettings()">⚙️</button>
+    </header>
+
+    <div class="tabs-container" id="tabs-container"></div>
+    <div class="habit-toolbar">
+        <button class="btn-text-danger" id="btn-delete-habit" onclick="deleteCurrentHabit()" style="display:none;">删除此习惯</button>
+    </div>
+
+    <div class="heatmap-wrapper" id="scroll-wrapper">
+        <div id="heatmap" class="graph-container"></div>
+    </div>
+    
+    <div id="status-msg">初始化中...</div>
+    <div id="global-tooltip"></div>
+
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal">
+            <h2 style="margin-top:0">数据源配置</h2>
+            <div class="input-group"><label>JsonIO Bin ID</label><input type="text" id="cfg-bin-id" placeholder="Bin ID"></div>
+            <div class="input-group"><label>JsonIO API Key</label><input type="password" id="cfg-json-key" placeholder="X-Master-Key"></div>
+            <div class="input-group"><label>ImgBB API Key (选填)</label><input type="text" id="cfg-imgbb" placeholder="ImgBB Key"></div>
+            <div class="modal-actions">
+                <button onclick="closeSettings()" style="background:none;border:none;color:#8b949e;margin-right:10px;cursor:pointer">取消</button>
+                <button class="btn-primary" onclick="saveSettings()">连接</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const CONFIG_KEY = 'pixel_habit_config_v4'; 
+    const PALETTE = ['#39d353', '#2f81f7', '#a371f7', '#d29922', '#f778ba', '#3fb950', '#58a6ff'];
+    let appConfig = { binId: '', jsonKey: '', imgbbKey: '' };
+    let habitData = { meta: { version: 3 }, habits: [] };
+    let activeHabitId = null;
+
+    function init() {
+        const saved = localStorage.getItem(CONFIG_KEY);
+        if (saved) {
+            appConfig = JSON.parse(saved);
+            if (!appConfig.binId || !appConfig.jsonKey) openSettings(); else loadData();
+        } else {
+            createDefaultHabit(); renderTabs(); renderGrid(); openSettings();
+        }
+    }
+
+    function createDefaultHabit() {
+        habitData.habits = [{ id: Date.now(), name: "默认习惯", color: PALETTE[0], records: {} }];
+        activeHabitId = habitData.habits[0].id;
+    }
+    function switchHabit(id) {
+        activeHabitId = id; renderTabs(); renderGrid();
+        document.getElementById('btn-delete-habit').style.display = habitData.habits.length > 1 ? 'inline-block' : 'none';
+    }
+    function addNewHabit() {
+        const name = prompt("输入新习惯名称：");
+        if (name) {
+            const colorIndex = habitData.habits.length % PALETTE.length;
+            habitData.habits.push({ id: Date.now(), name: name, color: PALETTE[colorIndex], records: {} });
+            switchHabit(habitData.habits[habitData.habits.length-1].id); triggerSave();
+        }
+    }
+    function deleteCurrentHabit() {
+        if (!confirm("确定删除？")) return;
+        habitData.habits = habitData.habits.filter(h => h.id !== activeHabitId);
+        switchHabit(habitData.habits[0].id); triggerSave();
+    }
+    function getCurrentHabit() {
+        return habitData.habits.find(h => h.id === activeHabitId) || habitData.habits[0];
+    }
+    function renderTabs() {
+        const container = document.getElementById('tabs-container'); container.innerHTML = '';
+        habitData.habits.forEach(habit => {
+            if(!habit.color) habit.color = PALETTE[0];
+            const btn = document.createElement('button');
+            btn.className = `tab-btn ${habit.id === activeHabitId ? 'active' : ''}`;
+            btn.innerHTML = `<span class="dot" style="background:${habit.color}"></span> ${habit.name}`;
+            btn.onclick = () => switchHabit(habit.id);
+            container.appendChild(btn);
+        });
+        const addBtn = document.createElement('button');
+        addBtn.className = 'tab-action-btn'; addBtn.innerHTML = '+';
+        addBtn.onclick = addNewHabit; container.appendChild(addBtn);
+    }
+
+    // --- 核心修复：Grid 渲染逻辑 ---
+    function renderGrid() {
+        const container = document.getElementById('heatmap'); container.innerHTML = '';
+        const currentHabit = getCurrentHabit();
+        const records = currentHabit.records || {};
+        container.style.setProperty('--habit-color', currentHabit.color || PALETTE[0]);
+
+        const today = new Date();
+        const WEEKS_TO_SHOW = 26; // 显示半年
+
+        // 1. 找到“本周的星期一”作为锚点
+        let currentWeekMonday = new Date(today);
+        const currentDay = currentWeekMonday.getDay();
+        // 如果是周日(0)，往前推6天；否则往前推(day-1)天
+        currentWeekMonday.setDate(today.getDate() - currentDay + (currentDay === 0 ? -6 : 1));
+
+        // 2. 往前推 N-1 周，得到起始日 (StartDate)
+        let startDate = new Date(currentWeekMonday);
+        startDate.setDate(currentWeekMonday.getDate() - ((WEEKS_TO_SHOW - 1) * 7));
+
+        for (let w = 0; w < WEEKS_TO_SHOW; w++) {
+            const weekGroup = document.createElement('div'); weekGroup.className = 'week-group';
+            for (let d = 0; d < 7; d++) {
+                const current = new Date(startDate);
+                current.setDate(startDate.getDate() + (w * 7) + d);
+                const dateStr = formatDate(current);
+                const dayOfWeek = current.getDay();
+                const div = document.createElement('div');
+                div.className = 'pixel'; div.dataset.date = dateStr;
+
+                if (dayOfWeek === 0 || dayOfWeek === 6) div.classList.add('weekend');
+                if (records[dateStr]) div.classList.add('active');
+                if (dateStr === formatDate(today)) div.classList.add('today');
+
+                div.addEventListener('mouseenter', (e) => showTooltip(e.target, dateStr, records[dateStr]));
+                div.addEventListener('mouseleave', hideTooltip);
+                
+                if (current > today) { div.style.opacity = '0.3'; div.style.cursor = 'default'; }
+                else { div.onclick = () => toggleDate(dateStr, div); }
+                weekGroup.appendChild(div);
+            }
+            container.appendChild(weekGroup);
+        }
+
+        setTimeout(() => { if (window.innerWidth <= 768) window.scrollTo(0, 0); }, 50);
+    }
+
+    // --- Utils ---
+    const tooltipEl = document.getElementById('global-tooltip');
+    function showTooltip(el, text, isDone) {
+        if ('ontouchstart' in window) return;
+        const rect = el.getBoundingClientRect();
+        tooltipEl.textContent = `${text} ${isDone ? '(已完成)' : ''}`;
+        tooltipEl.style.left = (rect.left + rect.width / 2) + 'px';
+        tooltipEl.style.top = rect.top + 'px';
+        tooltipEl.classList.add('show');
+    }
+    function hideTooltip() { tooltipEl.classList.remove('show'); }
+
+    function toggleDate(dateStr, el) {
+        const currentHabit = getCurrentHabit();
+        if (!currentHabit.records) currentHabit.records = {};
+        const isActive = el.classList.toggle('active');
+        if (isActive) currentHabit.records[dateStr] = true; else delete currentHabit.records[dateStr];
+        if (!('ontouchstart' in window)) showTooltip(el, dateStr, isActive);
+        triggerSave();
+    }
+    function formatDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+    // --- API ---
+    function getApiUrl() { return `https://api.jsonbin.io/v3/b/${appConfig.binId}`; }
+    function getHeaders() { return { 'Content-Type': 'application/json', 'X-Master-Key': appConfig.jsonKey }; }
+    async function loadData() {
+        updateStatus("同步数据...");
+        try {
+            const res = await fetch(getApiUrl(), { headers: getHeaders() });
+            if (res.ok) {
+                let data = await res.json();
+                if (data.record) data = data.record;
+                if (data.habits) habitData = data;
+                else if (data.records) habitData.habits = [{ id: Date.now(), name: "默认", color: PALETTE[0], records: data.records }];
+                if (!activeHabitId && habitData.habits.length > 0) activeHabitId = habitData.habits[0].id;
+                renderTabs(); renderGrid(); updateStatus("同步完成", 1500);
+            }
+        } catch(e) { updateStatus("错误: " + e.message); }
+    }
+    let saveTimer;
+    function triggerSave() {
+        updateStatus("等待保存..."); clearTimeout(saveTimer);
+        saveTimer = setTimeout(async () => {
+            try { await fetch(getApiUrl(), { method: 'PUT', headers: getHeaders(), body: JSON.stringify(habitData) }); updateStatus("已保存", 1500); }
+            catch(e) { updateStatus("保存失败"); }
+        }, 1000);
+    }
+    function updateStatus(msg, t) {
+        const el = document.getElementById('status-msg'); el.innerText = "> " + msg;
+        if (t) setTimeout(() => { if(el.innerText.includes(msg)) el.innerText = "> 就绪"; }, t);
+    }
+
+    // Settings
+    function openSettings() {
+        document.getElementById('cfg-bin-id').value = appConfig.binId || '';
+        document.getElementById('cfg-json-key').value = appConfig.jsonKey || '';
+        document.getElementById('cfg-imgbb').value = appConfig.imgbbKey || '';
+        document.getElementById('settings-modal').style.display = 'flex';
+    }
+    function closeSettings() { if(!appConfig.binId) return alert("请先配置"); document.getElementById('settings-modal').style.display = 'none'; }
+    function saveSettings() {
+        let bid = document.getElementById('cfg-bin-id').value.trim();
+        if(bid.includes('/b/')) bid = bid.split('/b/')[1].split('/')[0];
+        appConfig = { binId: bid, jsonKey: document.getElementById('cfg-json-key').value.trim(), imgbbKey: document.getElementById('cfg-imgbb').value.trim() };
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+        document.getElementById('settings-modal').style.display = 'none'; loadData();
+    }
+
+    init();
+</script>
+</body>
+</html>
